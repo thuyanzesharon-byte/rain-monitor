@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1565C0">
+<meta name="description" content="Rain Monitor - Get alerts when your ESP32 detects rain">
+<title>Rain Monitor</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #1565C0 0%, #0D47A1 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .card { background: white; border-radius: 24px; padding: 40px 32px; max-width: 360px; width: 100%; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+  .app-title { font-size: 13px; font-weight: 600; color: #888; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 32px; }
+  .weather-icon { font-size: 96px; line-height: 1; margin-bottom: 24px; }
+  .status-text { font-size: 22px; font-weight: 700; color: #1a1a1a; margin-bottom: 8px; min-height: 32px; }
+  .sub-text { font-size: 15px; color: #666; margin-bottom: 32px; min-height: 22px; }
+  .status-badge { display: inline-flex; align-items: center; gap: 8px; padding: 8px 20px; border-radius: 100px; font-size: 13px; font-weight: 600; margin-bottom: 32px; }
+  .badge-rain { background: #E3F2FD; color: #1565C0; }
+  .badge-sun  { background: #FFF8E1; color: #F57F17; }
+  .badge-loading { background: #F5F5F5; color: #999; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .divider { height: 1px; background: #f0f0f0; margin-bottom: 24px; }
+  .last-update { font-size: 12px; color: #bbb; margin-bottom: 20px; }
+  .refresh-btn { background: #1565C0; color: white; border: none; border-radius: 12px; padding: 14px 32px; font-size: 15px; font-weight: 600; cursor: pointer; width: 100%; }
+  .error-text { font-size: 13px; color: #e53935; margin-top: 12px; min-height: 20px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="app-title">Rain Monitor</div>
+  <div class="weather-icon" id="icon">⏳</div>
+  <div class="status-text" id="status">Checking...</div>
+  <div class="sub-text" id="subtext">Connecting to sensor</div>
+  <div class="status-badge badge-loading" id="badge">
+    <div class="dot"></div>
+    <span id="badge-text">Loading</span>
+  </div>
+  <div class="divider"></div>
+  <div class="last-update" id="last-update">Last checked: —</div>
+  <button class="refresh-btn" onclick="checkRain()">Check Now</button>
+  <div class="error-text" id="error"></div>
+</div>
+
+<script>
+const CLOUDDB_URL = "https://clouddb.appinventor.mit.edu/rain123/rainStatus";
+
+function timeNow() {
+  return new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+
+async function checkRain() {
+  document.getElementById('icon').textContent = '⏳';
+  document.getElementById('status').textContent = 'Checking...';
+  document.getElementById('subtext').textContent = 'Talking to your ESP32';
+  document.getElementById('error').textContent = '';
+  const badge = document.getElementById('badge');
+  badge.className = 'status-badge badge-loading';
+  document.getElementById('badge-text').textContent = 'Loading';
+
+  try {
+    const res = await fetch(CLOUDDB_URL, { mode: 'cors', cache: 'no-cache' });
+    const text = await res.text();
+    const val = text.trim().replace(/"/g, '');
+
+    if (val === '1') {
+      document.getElementById('icon').textContent = '🌧️';
+      document.getElementById('status').textContent = 'Rain Detected!';
+      document.getElementById('subtext').textContent = 'Bring your clothes inside';
+      badge.className = 'status-badge badge-rain';
+      document.getElementById('badge-text').textContent = 'Raining now';
+    } else {
+      document.getElementById('icon').textContent = '☀️';
+      document.getElementById('status').textContent = 'Sunny Weather';
+      document.getElementById('subtext').textContent = 'Clothes are safe outside';
+      badge.className = 'status-badge badge-sun';
+      document.getElementById('badge-text').textContent = 'No rain';
+    }
+    document.getElementById('last-update').textContent = 'Last checked: ' + timeNow();
+  } catch(e) {
+    document.getElementById('icon').textContent = '❌';
+    document.getElementById('status').textContent = 'Connection Error';
+    document.getElementById('subtext').textContent = 'Could not reach sensor';
+    document.getElementById('error').textContent = 'Check your internet or ESP32 WiFi';
+    badge.className = 'status-badge badge-loading';
+    document.getElementById('badge-text').textContent = 'Offline';
+  }
+}
+
+checkRain();
+setInterval(checkRain, 5000);
+</script>
+</body>
+</html>
